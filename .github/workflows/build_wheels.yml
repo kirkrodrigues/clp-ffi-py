@@ -47,19 +47,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: |
-          pip install --upgrade pip
-          pip install -r requirements-dev.txt
+      - name: "Install task"
+        shell: "bash"
+        run: "npm install -g @go-task/cli"
 
-      - run: "docformatter --check --diff clp_ffi_py tests"
-
-      - run: "black --diff --check clp_ffi_py tests"
-
-      - run: "ruff check --output-format=github clp_ffi_py tests"
-
-      - run: "mypy clp_ffi_py tests"
-
-      - run: "find src/clp_ffi_py/ -type f | xargs clang-format --dry-run --Werror"
+      - name: "Run lint task"
+        shell: "bash"
+        run: "task lint:check"
 
   build_wheels:
     needs: ["linters"]
