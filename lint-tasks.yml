@@ -1,0 +1,116 @@
+version: "3"
+
+vars:
+  LINT_VENV_DIR: "{{.BUILD_DIR}}/lint-venv"
+
+tasks:
+  check:
+    cmds:
+      - task: "cpp-check"
+      - task: "py-check"
+      - task: "yml-check"
+
+  fix:
+    cmds:
+      - task: "cpp-fix"
+      - task: "py-fix"
+      - task: "yml-fix"
+
+  cpp-check:
+    cmds:
+      - task: "cpp"
+        vars:
+          FLAGS: "--dry-run"
+    sources: &cpp_source_files
+      - "{{.TASKFILE}}"
+      - ".clang-format"
+      - "src/clp_ffi_py/**/*.cpp"
+      - "src/clp_ffi_py/**/*.h"
+      - "src/clp_ffi_py/**/*.hpp"
+      - "src/clp_ffi_py/**/*.inc"
+
+  cpp-fix:
+    cmds:
+      - task: "cpp"
+        vars:
+          FLAGS: "-i"
+    sources: *cpp_source_files
+
+  py-check:
+    cmds:
+      - task: "py"
+        vars:
+          BLACK_FLAGS: "--check"
+          DOCFORMATTER_FLAGS: "--check"
+          RUFF_FLAGS: ""
+
+  py-fix:
+    cmds:
+      - task: "py"
+        vars:
+          BLACK_FLAGS: ""
+          DOCFORMATTER_FLAGS: "--in-place"
+          RUFF_FLAGS: "--fix"
+
+  yml:
+    aliases:
+      - "yml-check"
+      - "yml-fix"
+    deps: ["venv"]
+    cmds:
+      - |-
+        . "{{.LINT_VENV_DIR}}/bin/activate"
+        yamllint .
+
+  cpp:
+    internal: true
+    requires:
+      vars: ["FLAGS"]
+    deps: ["venv"]
+    cmds:
+      - |-
+        . "{{.LINT_VENV_DIR}}/bin/activate"
+        find src/clp_ffi_py \
+          -type f \
+          \( -iname "*.cpp" -o -iname "*.h" -o -iname "*.hpp" -o -iname "*.inc" \) \
+          -print0 | \
+            xargs -0 clang-format {{.FLAGS}} -Werror
+
+  py:
+    internal: true
+    requires:
+      vars: ["BLACK_FLAGS", "DOCFORMATTER_FLAGS", "RUFF_FLAGS"]
+    deps: ["venv"]
+    cmds:
+      # NOTE: docformatter should be run before Black to give Black the last word.
+      - |-
+        . "{{.LINT_VENV_DIR}}/bin/activate"
+        docformatter {{.DOCFORMATTER_FLAGS}} clp_ffi_py tests
+        black --color --line-length 100 {{.BLACK_FLAGS}} clp_ffi_py tests
+        ruff check {{.RUFF_FLAGS}} clp_ffi_py tests
+        mypy clp_ffi_py tests
+
+  venv:
+    internal: true
+    vars:
+      CHECKSUM_FILE: "{{.BUILD_DIR}}/{{.TASK}}.md5"
+      OUTPUT_DIR: "{{.LINT_VENV_DIR}}"
+    cmds:
+      - task: ":build-venv"
+        vars:
+          COMPONENT: "lint"
+          OUTPUT_DIR: "{{.OUTPUT_DIR}}"
+          REQUIREMENTS_FILE_PATH: "requirements-dev.txt"
+      # Checksum the generated files (this command must be last)
+      - |-
+        cd "{{.OUTPUT_DIR}}"
+        tar cf - {{.CHECKSUM_TAR_BASE_ARGS}} . | md5sum > "{{.CHECKSUM_FILE}}"
+    sources:
+      - "{{.TASKFILE}}"
+      - "requirements-dev.txt"
+    status:
+      - "test -f '{{.CHECKSUM_FILE}}'"
+      - >-
+        diff
+        <(cd '{{.OUTPUT_DIR}}' && tar cf - {{.CHECKSUM_TAR_BASE_ARGS}} . | md5sum)
+        "{{.CHECKSUM_FILE}}"

@@ -3,6 +3,8 @@ version: "3"
 includes:
   docs:
     taskfile: "docs/tasks.yml"
+  lint:
+    taskfile: "lint-tasks.yml"
 
 vars:
   # Paths
@@ -99,14 +101,14 @@ tasks:
         vars:
           COMPONENT: "wheel"
           OUTPUT_DIR: "{{.OUTPUT_DIR}}"
-          REQUIREMENTS_FILE_PATH: "requirements-dev.txt"
+          REQUIREMENTS_FILE_PATH: "requirements-build.txt"
       # Checksum the generated files (this command must be last)
       - |-
         cd "{{.OUTPUT_DIR}}"
         tar cf - {{.CHECKSUM_TAR_BASE_ARGS}} . | md5sum > "{{.CHECKSUM_FILE}}"
     sources:
       - "{{.TASKFILE}}"
-      - "requirements-dev.txt"
+      - "requirements-build.txt"
     status:
       - "test -f '{{.CHECKSUM_FILE}}'"
       - >-
