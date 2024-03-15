@@ -9,6 +9,7 @@ includes:
 vars:
   # Paths
   BUILD_DIR: "{{.ROOT_DIR}}/build"
+  TEST_VENV_DIR: "{{.BUILD_DIR}}/test-venv"
   WHEEL_BUILD_DIR: "{{.BUILD_DIR}}/dist"
   WHEEL_VENV_DIR: "{{.BUILD_DIR}}/wheel-venv"
 
@@ -19,6 +20,14 @@ tasks:
   clean:
     cmds:
       - "rm -rf '{{.BUILD_DIR}}'"
+
+  test:
+    deps: ["test-venv"]
+    cmds:
+      - |-
+        . "{{.TEST_VENV_DIR}}/bin/activate"
+        cd tests
+        python3 -m unittest -bv
 
   wheel:
     vars:
@@ -88,6 +97,36 @@ tasks:
     sources:
       - "{{.TASKFILE}}"
       - ".gitmodules"
+    status:
+      - "test -f '{{.CHECKSUM_FILE}}'"
+      - >-
+        diff
+        <(cd '{{.OUTPUT_DIR}}' && tar cf - {{.CHECKSUM_TAR_BASE_ARGS}} . | md5sum)
+        "{{.CHECKSUM_FILE}}"
+
+  test-venv:
+    internal: true
+    vars:
+      CHECKSUM_FILE: "{{.BUILD_DIR}}/{{.TASK}}.md5"
+      REQUIREMENTS_FILE_PATH: "requirements-dev.txt"
+      OUTPUT_DIR: "{{.TEST_VENV_DIR}}"
+    cmds:
+      - task: "build-venv"
+        vars:
+          COMPONENT: "test"
+          OUTPUT_DIR: "{{.OUTPUT_DIR}}"
+          REQUIREMENTS_FILE_PATH: "{{.REQUIREMENTS_FILE_PATH}}"
+      - |-
+        . "{{.OUTPUT_DIR}}/bin/activate"
+        pip3 install --upgrade "{{.WHEEL_BUILD_DIR}}"/*.whl
+      # Checksum the generated files (this command must be last)
+      - |-
+        cd "{{.OUTPUT_DIR}}"
+        tar cf - {{.CHECKSUM_TAR_BASE_ARGS}} . | md5sum > "{{.CHECKSUM_FILE}}"
+    sources:
+      - "{{.BUILD_DIR}}/wheel.md5"
+      - "{{.REQUIREMENTS_FILE_PATH}}"
+      - "{{.TASKFILE}}"
     status:
       - "test -f '{{.CHECKSUM_FILE}}'"
       - >-
