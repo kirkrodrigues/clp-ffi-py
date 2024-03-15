@@ -1,13 +1,15 @@
 -r requirements-build.txt
 
-# Build and test dependencies
-# NOTE: These should match the packages in pyproject.toml's `dependencies` and `test-requires`
-# arrays. We use a separate requirements file since if we try to use pip to install the dependencies
-# from the pyproject.toml file, it will also unnecessarily build and install clp_ffi_py.
+# Build dependencies
+# NOTE: These should match the packages in pyproject.toml's project.dependencies. We use a separate
+requirements file since if we try to use pip to install the dependencies from the pyproject.toml
+file, it will also unnecessarily build and install clp_ffi_py.
 python-dateutil >= 2.7.0
-smart_open>=6.3.0
 typing-extensions >= 4.1.1
 zstandard>=0.18.0
+
+# Test dependencies
+smart_open>=6.3.0
 
 # Lint requirements
 black>=23.11.0
