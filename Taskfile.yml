@@ -60,6 +60,10 @@ tasks:
     cmds:
       - "rm -rf '{{.OUTPUT_DIR}}'"
       - "python3 -m venv '{{.OUTPUT_DIR}}'"
+      # Remove calls to `hash` since Task uses `gosh` rather than `bash`.
+      # NOTE: Older versions of Python's venv would only call `hash` if they detected the running
+      # shell was one that had the command, but that's not the case in newer versions.
+      - "sed -i 's/^\\s*hash\\s\\+.*/true/g' \"{{.OUTPUT_DIR}}/bin/activate\""
       - |-
         . "{{.OUTPUT_DIR}}/bin/activate"
         pip3 install -r "{{.REQUIREMENTS_FILE_PATH}}"
