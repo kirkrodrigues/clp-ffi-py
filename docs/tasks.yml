@@ -8,7 +8,7 @@ vars:
 
   # Other variables
   PYTHON_VERSION:
-    sh: python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+    sh: "python3 -c \"import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')\""
 
 tasks:
   clean:
@@ -31,14 +31,14 @@ tasks:
     cmds:
       - |-
         . "{{.DOCS_VENV_DIR}}/bin/activate"
-        
+
         sphinx-apidoc \
         --force \
         --separate \
         --no-toc \
         -o src/api \
         "{{.DOCS_VENV_DIR}}/lib/python{{.PYTHON_VERSION}}/site-packages/clp_ffi_py/"
-        
+
         sphinx-build -a -c conf -b html src "{{.OUTPUT_DIR}}"
       # Checksum the generated files (this command must be last)
       - |-
