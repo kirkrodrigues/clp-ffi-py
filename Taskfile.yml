@@ -3,7 +3,7 @@ version: "3"
 includes:
   docs: "docs/tasks.yml"
   lint: "lint-tasks.yml"
-  utils: "tools/yscope-dev-utils/taskfiles/utils.yml"
+  utils: "tools/yscope-dev-utils/exports/taskfiles/utils/utils.yaml"
 
 vars:
   # Paths
@@ -47,6 +47,11 @@ tasks:
       CHECKSUM_FILE: "{{.BUILD_DIR}}/{{.TASK}}.md5"
       OUTPUT_DIR: "{{.WHEEL_BUILD_DIR}}"
     deps:
+      - "init"
+      - task: "utils:checksum:validate"
+        vars:
+          CHECKSUM_FILE: "{{.CHECKSUM_FILE}}"
+          INCLUDE_PATTERNS: ["{{.OUTPUT_DIR}}"]
       - "submodules"
       - "wheel-venv"
     cmds:
@@ -55,10 +60,12 @@ tasks:
         . "{{.WHEEL_VENV_DIR}}/bin/activate"
         export SKBUILD_BUILD_DIR="{{.WHEEL_BUILD_DIR}}"
         python3 -m build --outdir "{{.OUTPUT_DIR}}"
-      # Checksum the generated files (this command must be last)
-      - |-
-        cd "{{.OUTPUT_DIR}}"
-        tar cf - {{.CHECKSUM_TAR_BASE_ARGS}} . | md5sum > "{{.CHECKSUM_FILE}}"
+
+      # This command must be last
+      - task: "utils:checksum:compute"
+        vars:
+          CHECKSUM_FILE: "{{.CHECKSUM_FILE}}"
+          INCLUDE_PATTERNS: ["{{.OUTPUT_DIR}}"]
     sources:
       - "{{.BUILD_DIR}}/submodules.md5"
       - "{{.BUILD_DIR}}/wheel-venv.md5"
@@ -67,27 +74,7 @@ tasks:
       - "clp_ffi_py/**/*"
       - "pyproject.toml"
       - "src/**/*"
-    status:
-      - "test -f '{{.CHECKSUM_FILE}}'"
-      - >-
-        diff
-        <(cd '{{.OUTPUT_DIR}}' && tar cf - {{.CHECKSUM_TAR_BASE_ARGS}} . | md5sum)
-        "{{.CHECKSUM_FILE}}"
-
-  build-venv:
-    internal: true
-    label: "{{.COMPONENT}}-{{.TASK}}"
-    requires:
-      vars:
-        - "COMPONENT"
-        - "OUTPUT_DIR"
-        - "REQUIREMENTS_FILE_PATH"
-    cmds:
-      - "rm -rf '{{.OUTPUT_DIR}}'"
-      - "python3 -m venv '{{.OUTPUT_DIR}}'"
-      - |-
-        . "{{.OUTPUT_DIR}}/bin/activate"
-        pip3 install -r "{{.REQUIREMENTS_FILE_PATH}}"
+    generates: ["{{.CHECKSUM_FILE}}"]
 
   submodules:
     internal: true
@@ -100,43 +87,49 @@ tasks:
       # to the commits that the submodules point to.
       - sh: "git diff --quiet src/clp"
         msg: "There are uncommitted changes to the submodules. Commit or stash them first."
+    deps:
+      - "init"
+      - task: "utils:checksum:validate"
+        vars:
+          CHECKSUM_FILE: "{{.CHECKSUM_FILE}}"
+          INCLUDE_PATTERNS: ["{{.OUTPUT_DIR}}"]
     cmds:
       - "git submodule update --init --recursive"
-      # Checksum the generated files (this command must be last)
-      - |-
-        cd "{{.OUTPUT_DIR}}"
-        tar cf - {{.CHECKSUM_TAR_BASE_ARGS}} . | md5sum > "{{.CHECKSUM_FILE}}"
+
+      # This command must be last
+      - task: "utils:checksum:compute"
+        vars:
+          CHECKSUM_FILE: "{{.CHECKSUM_FILE}}"
+          INCLUDE_PATTERNS: ["{{.OUTPUT_DIR}}"]
     sources:
       - "{{.TASKFILE}}"
       - ".gitmodules"
-    status:
-      - "test -f '{{.CHECKSUM_FILE}}'"
-      - >-
-        diff
-        <(cd '{{.OUTPUT_DIR}}' && tar cf - {{.CHECKSUM_TAR_BASE_ARGS}} . | md5sum)
-        "{{.CHECKSUM_FILE}}"
+    generates: ["{{.CHECKSUM_FILE}}"]
 
   wheel-venv:
     internal: true
     vars:
       CHECKSUM_FILE: "{{.BUILD_DIR}}/{{.TASK}}.md5"
       OUTPUT_DIR: "{{.WHEEL_VENV_DIR}}"
-    cmds:
-      - task: "build-venv"
+    deps:
+      - "init"
+      - task: "utils:checksum:validate"
         vars:
-          COMPONENT: "wheel"
+          CHECKSUM_FILE: "{{.CHECKSUM_FILE}}"
+          INCLUDE_PATTERNS: ["{{.OUTPUT_DIR}}"]
+    cmds:
+      - task: "utils:misc:create-venv"
+        vars:
+          LABEL: "wheel"
           OUTPUT_DIR: "{{.OUTPUT_DIR}}"
-          REQUIREMENTS_FILE_PATH: "requirements-dev.txt"
-      # Checksum the generated files (this command must be last)
-      - |-
-        cd "{{.OUTPUT_DIR}}"
-        tar cf - {{.CHECKSUM_TAR_BASE_ARGS}} . | md5sum > "{{.CHECKSUM_FILE}}"
+          REQUIREMENTS_FILE: "requirements-dev.txt"
+
+      # This command must be last
+      - task: "utils:checksum:compute"
+        vars:
+          CHECKSUM_FILE: "{{.CHECKSUM_FILE}}"
+          INCLUDE_PATTERNS: ["{{.OUTPUT_DIR}}"]
     sources:
       - "{{.TASKFILE}}"
       - "requirements-dev.txt"
-    status:
-      - "test -f '{{.CHECKSUM_FILE}}'"
-      - >-
-        diff
-        <(cd '{{.OUTPUT_DIR}}' && tar cf - {{.CHECKSUM_TAR_BASE_ARGS}} . | md5sum)
-        "{{.CHECKSUM_FILE}}"
+    generates: ["{{.CHECKSUM_FILE}}"]
