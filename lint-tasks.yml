@@ -56,30 +56,28 @@ tasks:
   cpp-format-check:
     sources: &cpp_format_src_files
       - "{{.G_LINT_VENV_CHECKSUM_FILE}}"
-      - "{{.CLP_FFI_PY_CPP_SRC_DIR}}/**/*.cpp"
-      - "{{.CLP_FFI_PY_CPP_SRC_DIR}}/**/*.h"
-      - "{{.CLP_FFI_PY_CPP_SRC_DIR}}/**/*.hpp"
+      - "{{.CLP_FFI_PY_CPP_SRC_DIR}}/**/*"
       - "src/clp_ffi_py/.clang-format"
       - "{{.TASKFILE}}"
       - ".clang-format"
     deps: ["cpp-configs", "venv"]
     cmds:
-      - task: ":utils:clang-format"
+      - task: ":utils:cpp-lint:clang-format"
         vars:
-          FLAGS: "--dry-run"
-          SRC_PATHS:
-            ref: ".G_CPP_LINT_DIRS"
+          FLAGS: ["--dry-run"]
+          INCLUDE_FILENAME_PATTERNS: ["*.cpp", "*.h", "*.hpp"]
+          ROOT_PATHS: *cpp_format_src_files
           VENV_DIR: "{{.G_LINT_VENV_DIR}}"
 
   cpp-format-fix:
     sources: *cpp_format_src_files
     deps: ["cpp-configs", "venv"]
     cmds:
-      - task: ":utils:clang-format"
+      - task: ":utils:cpp-lint:clang-format"
         vars:
-          FLAGS: "-i"
-          SRC_PATHS:
-            ref: ".G_CPP_LINT_DIRS"
+          FLAGS: ["-i"]
+          INCLUDE_FILENAME_PATTERNS: ["*.cpp", "*.h", "*.hpp"]
+          ROOT_PATHS: *cpp_format_src_files
           VENV_DIR: "{{.G_LINT_VENV_DIR}}"
 
   cpp-static-check:
